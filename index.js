@@ -2,9 +2,25 @@ import venom from "venom-bot"
 import { Configuration, OpenAIApi } from "openai";
 
 const configuration = new Configuration({
-    apiKey: "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",
+    apiKey: "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",
 });
 const openai = new OpenAIApi(configuration);
+
+class Pessoa {
+
+    id = "";
+    status = "";
+    context = [];
+
+    constructor(id, status){
+        this.id = id;
+        this.status = status;
+    }
+
+}
+
+global.pessoas = {};
+
 
 venom
     .create()
@@ -16,14 +32,29 @@ venom
 function start(client) {
 let status = "0"
 let id = ""
+
+
 // if(id !== "" && )
     client.onMessage(async (message) => {
+
+        let pessoaMomento =  new Pessoa(message.from,"0");
+       
+        if(!global.pessoas[message.from]){
+            global.pessoas[pessoaMomento.id] = new Pessoa(message.from,"0");
+        }
+
+        pessoaMomento =   global.pessoas[message.from];
+
+
         console.log(message.from)
        let resposta = ""
         if (message.body) {
-            if (message.body === "SAIR") status = "1"
-            if(message.body === "RECOMECAR") status = "0"
-            if(status === "1") return
+            if (message.body === "SAIR") pessoaMomento.status = "1"
+            if(message.body === "RECOMECAR"){ 
+                pessoaMomento.status = "0"
+                pessoaMomento.context = "";
+            }
+            if(pessoaMomento.status === "1") return
             if (!configuration.apiKey) console.log("Key não configurada")
             const prompt = message.body || ""
             if (prompt.trim().length === 0) {
@@ -39,14 +70,15 @@ let id = ""
 
                 // });
                 // resposta = completion.data.choices[0].text
+                const promptE = "Bem-vindo à Techlooty! Eu sou seu assistente virtual e estou aqui para ajudá-lo a encontrar os produtos que você procura. Você pode contar comigo para responder a todas as suas perguntas e fornecer as informações necessárias para tomar uma decisão informada de compra. Nossa loja oferece uma ampla variedade de produtos eletrônicos, incluindo iPhones e eBooks. Se você estiver interessado em um iPhone 14 Pro Max, ele está disponível por R$7.500,00. Além disso, temos eBooks a partir de R$19,00. Se você quiser saber mais sobre algum produto em particular, por favor, acesse o link www.techlooty.com para obter informações adicionais. Durante nossa conversa, terei o prazer de anotar seu nome e outras informações que você possa compartilhar, para que possamos manter contato e fornecer um atendimento personalizado no futuro. Se você precisar encerrar a conversa e ser atendido por um humano, digite a palavra 'SAIR' a qualquer momento. Por favor, não hesite em me perguntar sobre preços, recursos e qualquer outra coisa que possa ajudá-lo a tomar uma decisão informada de compra. Se você tiver alguma dúvida sobre o processo de compra ou sobre o envio do produto, fique à vontade para perguntar. Obrigado por escolher a Techlooty. Estou aqui para ajudá-lo a ter uma ótima experiência de compra.";
+
                 const completion = await openai.createChatCompletion({
                     model: "gpt-3.5-turbo",
                     messages: [
                         {
-                            role: "system", "content":
-                                "Você é o assistente virtual da loja techlooty, você ira ajudar os clientes com os produtos da loja e sem você detectar que o cliente quer falar com um humano, você o informa para digitar a seguinte palavra SAIR. nossos principais produtos na loja são Iphones e eletronicos, alguns de nossos iphones são o iphone 14 pro max de R$7,500,00 e temos também ebooks a partir de R$19,00! caso o usuario pergunte sobre algum preço de algum produto especifico, informe-o para entrar no link www.techlooty.com para mais informações, caso ele apenas perguntar sobre precos, você o informará sobre os produtos que você sabe. tente não repetir informações caso você detecte que não são necessarias no contexto da conversa, lembre-se de coisas importantes como nome email etc"
+                            role: "system", "content": promptE
                         },
-                        { role: "user", "content": generatePrompt(prompt) }
+                        { role: "user", "content": generatePrompt(prompt, message.from) }
                     ],
                     max_tokens: 300
 
@@ -73,28 +105,35 @@ let id = ""
             
 
         }
+    global.pessoas = pessoaMomento;
     });
 }
-function generatePrompt(prompt) {
+
+function generatePrompt(prompt,id) {
+    let pessoaMomento = new Pessoa();
+    pessoaMomento = global.pessoas[id];
+
     const capitalizedAnimal = prompt[0].toUpperCase() + prompt.slice(1).toLowerCase();
     const promptAtual = `
       Pergunta: ${capitalizedAnimal}
       Resposta:`;
-    if (global.context) {
-        global.context.push(promptAtual);
+    if (pessoaMomento.context) {
+        pessoaMomento.context.push(promptAtual);
     } else {
-        global.context = [];
-        global.context.push(promptAtual)
+        pessoaMomento.context = [];
+        pessoaMomento.context.push(promptAtual)
     }
 
     let promptFinal = ``;
-    const total = global.context.length - 15;
+    const total = pessoaMomento.context.length - 15;
     const n = total >= 0 ? total : 0;
-    for (let i = n; i < global.context.length; i++) {
-        const context = global.context[i];
+    for (let i = n; i < pessoaMomento.context.length; i++) {
+        const context = pessoaMomento.context[i];
         promptFinal += context;
     }
     let chatsAllNew = ""
+
+    global.pessoas[id] = pessoaMomento;
 
     return promptFinal;
 
